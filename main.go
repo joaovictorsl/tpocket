@@ -6,19 +6,19 @@ import (
 	"os"
 	"strings"
 
-	"github.com/joaovictorsl/mytorrent/torrent"
+	"github.com/joaovictorsl/tpocket/torrent"
 )
 
 func main() {
 	files := []string{
 		// "debian-12.6.0-amd64-netinst.iso.torrent",
 		// "slackware-14.2-source-dvd.torrent",
-		"itsworking.gif.torrent",
-		"codercat.gif.torrent",
-		"sample.torrent",
+		// "sintel.torrent",
+		// "Gunner.2024.720p.WEBRip.800MB.x264-GalaxyRG.torrent",
+		"The.Union.2024.720p.NF.WEBRip.800MB.x264-GalaxyRG.torrent",
 	}
 	for _, file := range files {
-		client := &torrent.Client{}
+		client := torrent.NewClient()
 		f, err := os.Open(file)
 		if err != nil {
 			panic(err)

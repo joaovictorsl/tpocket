@@ -4,3 +4,7 @@ github.com/joaovictorsl/bencoding v0.0.0-20240803225616-72ef825c9c14 h1:aiHshLJN
 github.com/joaovictorsl/bencoding v0.0.0-20240803225616-72ef825c9c14/go.mod h1:78gdi0zuv1DxEHXAp62/+s1iEiRHxm95jYf5EYKUvaM=
 github.com/joaovictorsl/gorkpool v0.0.0-20240516233959-e3158328b147 h1:+p4EclTqzDi/g045pxn2+Rh6ICgwPBERr2wYfeK+/D0=
 github.com/joaovictorsl/gorkpool v0.0.0-20240516233959-e3158328b147/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240821204542-e8a66bda7cbc h1:frgmPldCU3MnvHBpwFCtxE1TfpYM4oeOVeddcx9ZrF4=
+github.com/joaovictorsl/gorkpool v0.0.0-20240821204542-e8a66bda7cbc/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240821210553-1bea6b5c435c h1:Uqxa7Ip923OIT4cc50ENcY7yEx5c5YXwSG5r2VIU0Ng=
+github.com/joaovictorsl/gorkpool v0.0.0-20240821210553-1bea6b5c435c/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=

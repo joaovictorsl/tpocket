@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/joaovictorsl/mytorrent/torrent/messages"
+	"github.com/joaovictorsl/tpocket/torrent/messages"
 )
 
 type PeerConn struct {

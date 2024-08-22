@@ -5,10 +5,11 @@ import (
 	"net"
 	"os"
 
-	"github.com/joaovictorsl/mytorrent/torrent/messages"
+	"github.com/joaovictorsl/tpocket/torrent/messages"
 )
 
 type DownloadWorker struct {
+	tskCh    chan DownloadTask
 	pc       *PeerConn
 	infoHash []byte
 	pieceLen uint32
@@ -16,6 +17,9 @@ type DownloadWorker struct {
 	log      *log.Logger
 	logFile  *os.File
 	choked   bool
+}
+
+type DownloadTask struct {
 }
 
 func NewDownloadWorker(peerAddr net.Addr, infoHash []byte, pieceLen uint32, pm *PieceManager) *DownloadWorker {
@@ -26,6 +30,14 @@ func NewDownloadWorker(peerAddr net.Addr, infoHash []byte, pieceLen uint32, pm *
 		pm:       pm,
 		choked:   true,
 	}
+}
+
+func (w *DownloadWorker) ReceiveTaskChannel(ch chan DownloadTask) {
+
+}
+
+func (w *DownloadWorker) SignalRemoval() {
+
 }
 
 func (w *DownloadWorker) Process() {

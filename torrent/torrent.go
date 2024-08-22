@@ -2,10 +2,15 @@ package torrent
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"strings"
+)
+
+var (
+	ErrFieldMissing = errors.New("field missing")
 )
 
 type TrackerResponse struct {
@@ -48,8 +53,8 @@ func trackerResponseFrom(source map[string]interface{}) (*TrackerResponse, error
 }
 
 type TorrentData struct {
-	// The URL of the tracker
-	Announce string
+	// URL of trackers
+	Announcers []string
 	// Information about the file(s)
 	Info *TorrentInfo
 }
@@ -82,9 +87,25 @@ type TorrentInfo struct {
 	// If this field is != nil then the download
 	// represents multiple files.
 	Files []*TorrentFileInfo
+	// Hash of info
+	Hash []byte
 }
 
-func (ti TorrentInfo) Encode() string {
+func NewTorrentInfo(name string, pieceLen int, pieces []string, length int, files []*TorrentFileInfo) *TorrentInfo {
+	ti := &TorrentInfo{
+		Name:        name,
+		PieceLength: pieceLen,
+		Pieces:      pieces,
+		Length:      length,
+		Files:       files,
+	}
+
+	ti.Hash = calcHash([]byte(ti.encode()))
+
+	return ti
+}
+
+func (ti TorrentInfo) encode() string {
 	var encoded string
 	piecesStr := strings.Join(ti.Pieces, "")
 	if ti.Length != 0 {
@@ -100,7 +121,7 @@ func (ti TorrentInfo) Encode() string {
 	} else {
 		files := "l"
 		for _, f := range ti.Files {
-			files += f.Encode()
+			files += f.encode()
 		}
 		files += "e"
 
@@ -126,7 +147,7 @@ type TorrentFileInfo struct {
 	Path []string
 }
 
-func (tfi TorrentFileInfo) Encode() string {
+func (tfi TorrentFileInfo) encode() string {
 	path := ""
 	for _, s := range tfi.Path {
 		path += fmt.Sprintf("%d:%s", len(s), s)
@@ -143,10 +164,26 @@ func torrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 	td := &TorrentData{}
 	ti := &TorrentInfo{}
 
-	// Get announce
-	announce, err := getField[string]("announce", source)
-	if err != nil {
+	// Get announcers
+	announcers := make([]string, 0)
+	announceList, err := getField[[]interface{}]("announce-list", source)
+	if err != nil && err != ErrFieldMissing {
 		return td, err
+	}
+	for _, v := range announceList {
+		a, ok := v.([]interface{})
+		if !ok {
+			panic("Announce list is not a list of list of string")
+		}
+		announcers = append(announcers, a[0].(string))
+	}
+
+	if len(announcers) != 0 {
+		announce, err := getField[string]("announce", source)
+		if err != nil {
+			return td, err
+		}
+		announcers = append(announcers, announce)
 	}
 
 	// Get info
@@ -209,7 +246,7 @@ func torrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 	ti.Length = length
 	ti.Files = files
 
-	td.Announce = announce
+	td.Announcers = announcers
 	td.Info = ti
 
 	return td, nil
@@ -265,7 +302,7 @@ func getField[T any](field string, source map[string]interface{}) (T, error) {
 	var zero T
 	iField, ok := source[field]
 	if !ok {
-		return zero, fmt.Errorf("missing %s", field)
+		return zero, ErrFieldMissing
 	}
 
 	fieldValue, ok := iField.(T)
