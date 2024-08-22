@@ -2,11 +2,10 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"strings"
-
-	"github.com/joaovictorsl/tpocket/torrent"
+	"time"
 )
 
 func main() {
@@ -18,18 +17,19 @@ func main() {
 		"The.Union.2024.720p.NF.WEBRip.800MB.x264-GalaxyRG.torrent",
 	}
 	for _, file := range files {
-		client := torrent.NewClient()
 		f, err := os.Open(file)
 		if err != nil {
 			panic(err)
 		}
 		defer f.Close()
 
-		if err := client.Download(bufio.NewReader(f)); err != nil {
+		if err := Download(context.Background(), bufio.NewReader(f)); err != nil {
 			panic(err)
 		}
 
-		assemblyFile(strings.Split(file, ".torrent")[0])
+		time.Sleep(5 * time.Minute)
+
+		// assemblyFile(strings.Split(file, ".torrent")[0])
 	}
 }
 

@@ -1,4 +1,4 @@
-package torrent
+package download
 
 import (
 	"bytes"
@@ -7,7 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/joaovictorsl/tpocket/torrent/messages"
+	"github.com/joaovictorsl/tpocket/messages"
+	"github.com/joaovictorsl/tpocket/util"
 )
 
 type PeerConn struct {
@@ -78,7 +79,7 @@ func (pc *PeerConn) SendRequest(idx, begin, pieceLen uint32) error {
 }
 
 func (pc *PeerConn) HashMatches(piece []byte, hash []byte) bool {
-	return slices.Compare(calcHash(piece), hash) == 0
+	return slices.Compare(util.CalcHash(piece), hash) == 0
 }
 
 func (pc *PeerConn) SendHave(idx uint32) error {

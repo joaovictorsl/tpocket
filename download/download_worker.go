@@ -1,25 +1,24 @@
-package torrent
+package download
 
 import (
 	"log"
 	"net"
 	"os"
 
-	"github.com/joaovictorsl/tpocket/torrent/messages"
+	"github.com/joaovictorsl/tpocket/messages"
 )
 
 type DownloadWorker struct {
-	tskCh    chan DownloadTask
-	pc       *PeerConn
+	tskCh    chan Piece
 	infoHash []byte
 	pieceLen uint32
-	pm       *PieceManager
-	log      *log.Logger
-	logFile  *os.File
-	choked   bool
-}
 
-type DownloadTask struct {
+	pc     *PeerConn
+	pm     *PieceManager
+	choked bool
+
+	log     *log.Logger
+	logFile *os.File
 }
 
 func NewDownloadWorker(peerAddr net.Addr, infoHash []byte, pieceLen uint32, pm *PieceManager) *DownloadWorker {
@@ -32,12 +31,13 @@ func NewDownloadWorker(peerAddr net.Addr, infoHash []byte, pieceLen uint32, pm *
 	}
 }
 
-func (w *DownloadWorker) ReceiveTaskChannel(ch chan DownloadTask) {
-
+func (w *DownloadWorker) ReceiveTaskChannel(ch chan Piece) {
+	w.tskCh = ch
 }
 
 func (w *DownloadWorker) SignalRemoval() {
-
+	// This is here so we can implement the interface
+	// We won't be needing this
 }
 
 func (w *DownloadWorker) Process() {
@@ -195,6 +195,7 @@ func (w *DownloadWorker) savePiece(savePath string, data []byte) error {
 }
 
 func (w *DownloadWorker) startLogger() error {
+	// TODO: Create log folder
 	f, err := os.OpenFile("./log/"+w.pc.addr.String()+"_log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
