@@ -118,13 +118,17 @@ func NewAnnounceResponse(b []byte) *AnnounceResponse {
 		Seeders:       binary.BigEndian.Uint32(b[16:20]),
 	}
 
-	addrs := make([]net.Addr, res.Seeders)
+	addrs := make([]net.Addr, 0)
 	for i := uint32(0); i < res.Seeders; i++ {
 		ipStart := 6*i + 20
 		portStart := ipStart + 4
-		addrs[i] = &net.TCPAddr{
+		addr := &net.TCPAddr{
 			IP:   b[ipStart : ipStart+4],
 			Port: int(binary.BigEndian.Uint16(b[portStart : portStart+2])),
+		}
+		// In case IP is not honored
+		if addr.String() != "0.0.0.0:0" {
+			addrs = append(addrs, addr)
 		}
 	}
 

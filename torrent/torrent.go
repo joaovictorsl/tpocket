@@ -18,26 +18,24 @@ type TorrentData struct {
 }
 
 func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
-	td := &TorrentData{}
-
 	// Get announcers
 	announcers := make([]string, 0)
 	announceList, err := getField[[]interface{}]("announce-list", source)
 	if err != nil && err != ErrFieldMissing {
-		return td, err
+		return nil, err
 	}
 	for _, v := range announceList {
 		a, ok := v.([]interface{})
 		if !ok {
-			panic("Announce list is not a list of list of string")
+			return nil, fmt.Errorf("announce-list is not a list of list of string")
 		}
 		announcers = append(announcers, a[0].(string))
 	}
 
-	if len(announcers) != 0 {
+	if len(announcers) == 0 {
 		announce, err := getField[string]("announce", source)
 		if err != nil {
-			return td, err
+			return nil, err
 		}
 		announcers = append(announcers, announce)
 	}
@@ -45,25 +43,25 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 	// Get info
 	mapInfo, err := getField[map[string]interface{}]("info", source)
 	if err != nil {
-		return td, err
+		return nil, err
 	}
 
 	// Get name
 	name, err := getField[string]("name", mapInfo)
 	if err != nil {
-		return td, err
+		return nil, err
 	}
 
 	// Get piece length
 	pieceLength, err := getField[int]("piece length", mapInfo)
 	if err != nil {
-		return td, err
+		return nil, err
 	}
 
 	// Get pieces
 	piecesStr, err := getField[string]("pieces", mapInfo)
 	if err != nil {
-		return td, err
+		return nil, err
 	}
 	pieces := make([]string, 0)
 	for i := 0; i < len(piecesStr); i += 20 {
@@ -74,7 +72,7 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 	_, okL := mapInfo["length"]
 	_, okF := mapInfo["files"]
 	if okL == okF {
-		return td, fmt.Errorf("there can only be a key length or a key files, not both or neither")
+		return nil, fmt.Errorf("there can only be a key length or a key files, not both or neither")
 	}
 
 	length := 0
@@ -83,14 +81,14 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 	if okL {
 		l, err := getField[int]("length", mapInfo)
 		if err != nil {
-			return td, err
+			return nil, err
 		}
 
 		length = l
 	} else {
 		fs, err := filesFrom(mapInfo)
 		if err != nil {
-			return td, err
+			return nil, err
 		}
 
 		files = fs
@@ -98,10 +96,10 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 
 	ti := NewTorrentInfo(name, pieceLength, pieces, length, files)
 
-	td.Announcers = announcers
-	td.Info = ti
-
-	return td, nil
+	return &TorrentData{
+		Announcers: announcers,
+		Info:       ti,
+	}, nil
 }
 
 func filesFrom(source map[string]interface{}) ([]*TorrentFileInfo, error) {

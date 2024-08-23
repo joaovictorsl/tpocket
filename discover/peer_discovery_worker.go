@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net"
 	"net/http"
@@ -21,6 +22,9 @@ type PeerDiscoverWorker struct {
 	taskCh chan PeerDiscoverTask
 	addrCh chan net.Addr
 	buff   []byte
+
+	log     *log.Logger
+	logFile *os.File
 }
 
 type PeerDiscoverTask struct {
@@ -40,9 +44,25 @@ func NewPeerDiscoverWorker(taskCh chan PeerDiscoverTask, addrCh chan net.Addr) *
 	}
 }
 
+func (w *PeerDiscoverWorker) startAnnouncerLogger(announce string) error {
+	// TODO: Create log folder
+	f, err := os.OpenFile("./log/announce_"+strings.Split(announce, "/")[2]+"_log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	w.log = log.New(f, "[PeerDiscoverWorker] ", log.Flags())
+	w.logFile = f
+
+	return nil
+}
+
 func (pd *PeerDiscoverWorker) Process() {
 	var discoverFn func(string, []byte, uint64) (*torrent.TrackerResponse, error)
 	for t := range pd.taskCh {
+		if err := pd.startAnnouncerLogger(t.Announce); err != nil {
+			fmt.Println(err)
+		}
 		if strings.Contains(t.Announce, "udp") {
 			discoverFn = pd.discoverUDP
 		} else {
@@ -51,13 +71,15 @@ func (pd *PeerDiscoverWorker) Process() {
 
 		tr, err := discoverFn(t.Announce, t.InfoHash, t.Length)
 		if err != nil {
-			fmt.Println(err)
+			pd.log.Println(err)
 			continue
 		}
 
 		for _, p := range tr.Peers {
 			pd.addrCh <- p
 		}
+
+		pd.logFile.Close()
 	}
 }
 
@@ -140,7 +162,7 @@ func (pd *PeerDiscoverWorker) connectRequest(conn net.Conn) (*ConnectResponse, e
 		n, err := conn.Read(pd.buff)
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) {
-				fmt.Println("timeout")
+				pd.log.Println("timeout")
 				if i == 1 {
 					return nil, fmt.Errorf("timed out for real connect")
 				}
@@ -157,13 +179,14 @@ func (pd *PeerDiscoverWorker) connectRequest(conn net.Conn) (*ConnectResponse, e
 		} else if res.Action != CONNECT {
 			return nil, fmt.Errorf("res.Action != CONNECT")
 		}
+		break
 	}
 
 	return res, nil
 }
 
 func (pd *PeerDiscoverWorker) announceRequest(conn net.Conn, connId uint64, infoHash []byte, length uint64, port uint16) (*AnnounceResponse, error) {
-	fmt.Println("announceRequest")
+	pd.log.Println("announceRequest")
 	var res *AnnounceResponse
 	for i := 0; i < 2; i++ {
 		timeout := time.Duration(15*math.Pow(2, float64(i))) * time.Second
@@ -177,7 +200,7 @@ func (pd *PeerDiscoverWorker) announceRequest(conn net.Conn, connId uint64, info
 		n, err := conn.Read(pd.buff)
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) {
-				fmt.Println("timeout")
+				pd.log.Println("timeout")
 				if i == 1 {
 					return nil, fmt.Errorf("timedout for real")
 				}
@@ -187,11 +210,14 @@ func (pd *PeerDiscoverWorker) announceRequest(conn net.Conn, connId uint64, info
 		} else if n < 20 {
 			return nil, fmt.Errorf("bytes read on announce request should be >= 20")
 		} else if pd.buff[3] == 3 {
-			fmt.Println(string(pd.buff[8:n]))
+			pd.log.Println(string(pd.buff[8:n]))
 			return nil, fmt.Errorf("announce response with error")
 		}
 
+		pd.log.Println("n", n)
+		pd.log.Println("pd.buff", pd.buff[:n])
 		res = NewAnnounceResponse(pd.buff[:n])
+		break
 	}
 
 	return res, nil

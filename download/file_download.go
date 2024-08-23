@@ -40,7 +40,6 @@ func (dm *FileDownload) AssemblyFile() {
 
 func (dm *FileDownload) listenForNewPeerAddr(ch chan net.Addr) {
 	for addr := range ch {
-		fmt.Println("addr", addr)
 		dm.downloadPool.AddWorker(
 			NewDownloadWorker(addr, dm.td.Hash, uint32(dm.td.PieceLength), dm.pm),
 		)
