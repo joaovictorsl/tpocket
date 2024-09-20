@@ -5,22 +5,41 @@ import (
 	"net"
 )
 
-type TrackerResponse struct {
-	Interval int
-	Peers    []net.Addr
+type trackerResponse struct {
+	announcer string
+	interval  int
+	peers     []net.Addr
 }
 
-func TrackerResponseFrom(source map[string]interface{}) (*TrackerResponse, error) {
-	tr := &TrackerResponse{}
+func (tr trackerResponse) Announcer() string {
+	return tr.announcer
+}
 
+func (tr trackerResponse) Interval() int {
+	return tr.interval
+}
+
+func (tr trackerResponse) Peers() []net.Addr {
+	return tr.peers
+}
+
+func NewTrackerResponse(announcer string, interval int, peers []net.Addr) ITrackerResponse {
+	return trackerResponse{
+		announcer: announcer,
+		interval:  interval,
+		peers:     peers,
+	}
+}
+
+func TrackerResponseFrom(announce string, source map[string]interface{}) (ITrackerResponse, error) {
 	interval, err := getField[int]("interval", source)
 	if err != nil {
-		return tr, err
+		return nil, err
 	}
 
 	strPeers, err := getField[string]("peers", source)
 	if err != nil {
-		return tr, err
+		return nil, err
 	}
 
 	peersBytes := []byte(strPeers)
@@ -38,8 +57,9 @@ func TrackerResponseFrom(source map[string]interface{}) (*TrackerResponse, error
 		})
 	}
 
-	tr.Interval = interval
-	tr.Peers = peers
-
-	return tr, nil
+	return &trackerResponse{
+		announcer: announce,
+		interval:  interval,
+		peers:     peers,
+	}, nil
 }

@@ -34,3 +34,7 @@ func (msg *BitfieldMessage) ToBytes() []byte {
 
 	return b.Bytes()
 }
+
+func (msg BitfieldMessage) Bitfield() []byte {
+	return msg.bitfield
+}

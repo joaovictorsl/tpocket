@@ -3,21 +3,28 @@ package torrent
 import (
 	"errors"
 	"fmt"
-	"reflect"
 )
 
 var (
 	ErrFieldMissing = errors.New("field missing")
 )
 
-type TorrentData struct {
+type torrentData struct {
 	// URL of trackers
-	Announcers []string
+	announcers []string
 	// Information about the file(s)
-	Info *TorrentInfo
+	info *torrentInfo
 }
 
-func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
+func (td torrentData) Announcers() []string {
+	return td.announcers
+}
+
+func (td torrentData) Info() ITorrentInfo {
+	return td.info
+}
+
+func TorrentDataFrom(source map[string]interface{}) (ITorrentData, error) {
 	// Get announcers
 	announcers := make([]string, 0)
 	announceList, err := getField[[]interface{}]("announce-list", source)
@@ -75,8 +82,8 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 		return nil, fmt.Errorf("there can only be a key length or a key files, not both or neither")
 	}
 
-	length := 0
-	var files []*TorrentFileInfo
+	length := uint64(0)
+	var files []*torrentFileInfo
 
 	if okL {
 		l, err := getField[int]("length", mapInfo)
@@ -84,7 +91,7 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 			return nil, err
 		}
 
-		length = l
+		length = uint64(l)
 	} else {
 		fs, err := filesFrom(mapInfo)
 		if err != nil {
@@ -94,71 +101,10 @@ func TorrentDataFrom(source map[string]interface{}) (*TorrentData, error) {
 		files = fs
 	}
 
-	ti := NewTorrentInfo(name, pieceLength, pieces, length, files)
+	ti := newTorrentInfo(name, uint64(pieceLength), pieces, length, files)
 
-	return &TorrentData{
-		Announcers: announcers,
-		Info:       ti,
+	return &torrentData{
+		announcers: announcers,
+		info:       ti,
 	}, nil
-}
-
-func filesFrom(source map[string]interface{}) ([]*TorrentFileInfo, error) {
-	iFiles, err := getField[[]interface{}]("files", source)
-	if err != nil {
-		return nil, err
-	}
-
-	files := make([]*TorrentFileInfo, 0)
-	for _, m := range iFiles {
-		m2, ok := m.(map[string]interface{})
-		if !ok {
-			fmt.Println("Deu ruim1")
-		}
-		tfi := &TorrentFileInfo{}
-		length, err := getField[int]("length", m2)
-		if err != nil {
-			return nil, err
-		}
-
-		path, err := getField[[]interface{}]("path", m2)
-		if err != nil {
-			return nil, err
-		}
-
-		path2 := make([]string, 0)
-		for _, v := range path {
-			vStr, ok := v.(string)
-			if !ok {
-				fmt.Println("Deu ruim2")
-			}
-
-			path2 = append(path2, vStr)
-		}
-
-		tfi.Length = length
-		tfi.Path = path2
-
-		files = append(files, tfi)
-	}
-
-	if len(files) == 0 {
-		return nil, fmt.Errorf("files cannot be empty")
-	}
-
-	return files, nil
-}
-
-func getField[T any](field string, source map[string]interface{}) (T, error) {
-	var zero T
-	iField, ok := source[field]
-	if !ok {
-		return zero, ErrFieldMissing
-	}
-
-	fieldValue, ok := iField.(T)
-	if !ok {
-		return zero, fmt.Errorf("%s is not a %v, it is a %v", field, reflect.TypeOf(zero), reflect.TypeOf(iField))
-	}
-
-	return fieldValue, nil
 }

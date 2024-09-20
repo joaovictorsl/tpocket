@@ -4,35 +4,51 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/joaovictorsl/tpocket/messages"
 )
 
+type Piece struct {
+	Idx      uint32
+	Hash     []byte
+	SavePath string
+}
+
+type DownloadedPiece struct {
+	Worker net.Addr
+	Idx    uint32
+}
+
 type DownloadWorker struct {
-	tskCh    chan Piece
+	id       net.Addr
+	inputCh  chan Piece
+	outputCh chan DownloadedPiece
 	infoHash []byte
 	pieceLen uint32
+	bitfield []byte
 
 	pc     *PeerConn
-	pm     *PieceManager
 	choked bool
 
 	log     *log.Logger
 	logFile *os.File
 }
 
-func NewDownloadWorker(peerAddr net.Addr, infoHash []byte, pieceLen uint32, pm *PieceManager) *DownloadWorker {
+func NewDownloadWorker(peerAddr net.Addr, inputCh chan Piece, outputCh chan DownloadedPiece, infoHash []byte, pieceLen uint32) *DownloadWorker {
 	return &DownloadWorker{
-		pc:       NewPeerConn(peerAddr, pieceLen),
+		id:       peerAddr,
+		inputCh:  inputCh,
+		outputCh: outputCh,
 		infoHash: infoHash,
 		pieceLen: pieceLen,
-		pm:       pm,
+		pc:       NewPeerConn(peerAddr, pieceLen),
 		choked:   true,
 	}
 }
 
-func (w *DownloadWorker) ReceiveTaskChannel(ch chan Piece) {
-	w.tskCh = ch
+func (w *DownloadWorker) ID() net.Addr {
+	return w.id
 }
 
 func (w *DownloadWorker) SignalRemoval() {
@@ -41,22 +57,48 @@ func (w *DownloadWorker) SignalRemoval() {
 }
 
 func (w *DownloadWorker) Process() {
-	err := w.pc.Handshake(w.infoHash)
-	if err != nil {
-		return
-	}
-
 	w.startLogger()
 	w.log.Println("Starting")
 	w.log.Println("Piece length", w.pieceLen)
 
 	defer w.logFile.Close()
+
+	attempts := 0
+	for attempts < 10 {
+		err := w.handleDownload()
+		if err != nil {
+			w.log.Println("SAIU")
+			attempts++
+		}
+		w.log.Println("Attempts", attempts)
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (w *DownloadWorker) hasPiece(piece int) bool {
+	targetByte := piece / 8
+	targetBit := byte(8 - piece%8)
+
+	return (w.bitfield[targetByte]>>targetBit)&1 == 1
+}
+
+func (w *DownloadWorker) handleDownload() error {
+	err := w.pc.Handshake(w.infoHash)
+	if err != nil {
+		w.log.Println("Handshake error", err)
+		return err
+	}
 	defer w.pc.Close()
 
 	data := make([]byte, w.pieceLen)
 
 pieceLoop:
-	for p := range w.pm.pieceCh {
+	for p := range w.inputCh {
+		if w.bitfield != nil && !w.hasPiece(int(p.Idx)) {
+			w.log.Printf("Peer does not have piece %d\n", p.Idx)
+			w.inputCh <- p
+			continue
+		}
 		w.log.Printf("Downloading piece %d\n", p.Idx)
 
 		downloaded := uint32(0)
@@ -66,11 +108,11 @@ pieceLoop:
 		for downloaded < w.pieceLen {
 			var msg messages.PeerMessage
 			if !w.choked {
-				for ; backlog < 5 && requested < w.pieceLen; backlog++ {
+				for ; backlog < 10 && requested < w.pieceLen; backlog++ {
 					err := w.pc.SendRequest(p.Idx, requested, w.pieceLen)
 					if err != nil {
 						w.log.Println("Error when requesting piece", err)
-						w.pm.pieceCh <- p
+						w.inputCh <- p
 						continue pieceLoop
 					}
 					w.log.Println("Requested", requested)
@@ -79,11 +121,11 @@ pieceLoop:
 			}
 
 			w.log.Println("Waiting for message")
-			msg, err = w.pc.ReadMessage()
+			msg, err := w.pc.ReadMessage()
 			if err != nil {
 				w.log.Println("Error when reading message", err)
-				w.pm.pieceCh <- p
-				return
+				w.inputCh <- p
+				return err
 			}
 
 			switch msg.Type() {
@@ -91,7 +133,7 @@ pieceLoop:
 				// Do something
 				w.log.Println("CHOKE")
 				w.choked = true
-				w.pm.pieceCh <- p
+				w.inputCh <- p
 				continue pieceLoop
 			case messages.UNCHOKE:
 				w.log.Println("UNCHOKE")
@@ -101,10 +143,9 @@ pieceLoop:
 					err := w.pc.SendRequest(p.Idx, requested, w.pieceLen)
 					if err != nil {
 						w.log.Println("Error when requesting piece", err)
-						w.pm.pieceCh <- p
+						w.inputCh <- p
 						continue pieceLoop
 					}
-					w.log.Println("Requested", requested)
 					requested += 16384
 				}
 			case messages.INTERESTED:
@@ -122,9 +163,12 @@ pieceLoop:
 				err := w.pc.SendInterest()
 				if err != nil {
 					w.log.Println("Error when sending interest", err)
-					w.pm.pieceCh <- p
+					w.inputCh <- p
 					continue pieceLoop
 				}
+
+				bitfieldMsg, _ := msg.(*messages.BitfieldMessage)
+				w.bitfield = bitfieldMsg.Bitfield()
 			case messages.REQUEST:
 				// Do something
 				w.log.Println("REQUEST")
@@ -137,17 +181,15 @@ pieceLoop:
 
 				copy(data[downloaded:], msgPiece.Block)
 				downloaded += uint32(len(msgPiece.Block))
-				w.log.Println("Downloaded", downloaded)
 
 				// Request other piece
 				if requested < w.pieceLen {
 					err := w.pc.SendRequest(p.Idx, requested, w.pieceLen)
 					if err != nil {
 						w.log.Println("Error when requesting piece", err)
-						w.pm.pieceCh <- p
+						w.inputCh <- p
 						continue pieceLoop
 					}
-					w.log.Println("Requested", requested)
 					requested += 16384
 				}
 			case messages.CANCEL:
@@ -155,14 +197,14 @@ pieceLoop:
 				w.log.Println("CANCEL")
 			default:
 				w.log.Println("Invalid message type", msg.Type())
-				w.pm.pieceCh <- p
-				return
+				w.inputCh <- p
+				return err
 			}
 		}
 
 		if !w.pc.HashMatches(data, p.Hash) {
 			w.log.Println("Hash doesn't match")
-			w.pm.pieceCh <- p
+			w.inputCh <- p
 			continue
 		}
 
@@ -177,10 +219,13 @@ pieceLoop:
 		}
 
 		w.log.Printf("Successfully saved piece %d\n", p.Idx)
-		w.pm.Notify(p)
+		w.outputCh <- DownloadedPiece{
+			Worker: w.id,
+			Idx:    p.Idx,
+		}
 	}
 
-	w.log.Println("Done")
+	return nil
 }
 
 func (w *DownloadWorker) savePiece(savePath string, data []byte) error {

@@ -4,3 +4,11 @@ github.com/joaovictorsl/gorkpool v0.0.0-20240821210553-1bea6b5c435c h1:Uqxa7Ip92
 github.com/joaovictorsl/gorkpool v0.0.0-20240821210553-1bea6b5c435c/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
 github.com/joaovictorsl/gorkpool v0.0.0-20240822134046-cdaba2651124 h1:D7cWbUVKX07AAZST5cWtVfLnH2FeBMS0P0yN9H99zU8=
 github.com/joaovictorsl/gorkpool v0.0.0-20240822134046-cdaba2651124/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240823145659-c97d346e6260 h1:MKGcBOzXBQBiR4Q8KoObIsPkjQgVI1FUH6dH33RQCro=
+github.com/joaovictorsl/gorkpool v0.0.0-20240823145659-c97d346e6260/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240825135246-fdb164a655a9 h1:+goshGmw+euYDV6Yc+SSfxfS+sKHLPKZKEM5t1MR/4w=
+github.com/joaovictorsl/gorkpool v0.0.0-20240825135246-fdb164a655a9/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240825185445-7c9ce4bedda3 h1:REFL8iTOCkRd0QxPvtZ9pWot4gjf8ivi8IGZ40ISHZo=
+github.com/joaovictorsl/gorkpool v0.0.0-20240825185445-7c9ce4bedda3/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
+github.com/joaovictorsl/gorkpool v0.0.0-20240829042112-e801b0bcd7b8 h1:+SKbEEWxm9GkPjjxCRJVj/OC2A4QS0fySiOO4qkjQBQ=
+github.com/joaovictorsl/gorkpool v0.0.0-20240829042112-e801b0bcd7b8/go.mod h1:MC7F2O+YZ2Q7HaojBADw/0/z2j3mU9dvFUUK8waEfCM=
